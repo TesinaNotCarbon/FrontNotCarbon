@@ -1,0 +1,71 @@
+
+@import "tailwindcss";
+
+:root {
+  --font-title: 'Montserrat', sans-serif;
+  --font-body: 'Poppins', sans-serif;
+  
+}
+
+html,
+body {
+  font-family: 'Poppins', sans-serif;
+  /* Si usas Tailwind, también puedes agregar la clase en el body: */
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  background-color: rgb(243 244 246); 
+}
+
+
+
+/* Thin scrollbar styles */
+::-webkit-scrollbar {
+width: 5px;
+height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #E4E4E77D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E4E4E7;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #818181;
+}
+
+
+
+@layer base {}
+
+
+
+@layer base {
+/*   * {
+    @apply border-border outline-ring/50;
+  } */
+/*   body {
+    @apply bg-background text-foreground;
+  } */
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./assets/fonts/Montserrat/Montserrat-VariableFont_wght.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('./assets/fonts/Poppins/Poppins-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
