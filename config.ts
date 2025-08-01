@@ -2,17 +2,15 @@ import { http, createConfig } from 'wagmi'
 import { base, mainnet, sepolia } from 'wagmi/chains'
 import { metaMask } from 'wagmi/connectors'
 
-const projectId = 'e18dcc77adaed3ab5f7d789cb559588a'
+const projectId = import.meta.env.VITE_WEB3_INFURA_PROJECT_ID
 
 export const config = createConfig({
-  chains: [mainnet, base],
+  chains: [sepolia],
   connectors: [
     metaMask({
-      infuraAPIKey: "2dd3ec556a47427bb6f47095f76f7702",
+      infuraAPIKey: import.meta.env.VITE_WEB3_INFURA_PROJECT_ID,
     }),
   ],
   transports: {
-    [mainnet.id]: http(),
-    [base.id]: http(),
-  },
+    [sepolia.id]: http()  },
 })
