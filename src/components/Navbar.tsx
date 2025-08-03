@@ -1,7 +1,7 @@
 import { useConnect, useAccount, useDisconnect, useEnsName } from 'wagmi'
 import { metaMask } from 'wagmi/connectors'
 import { Link } from 'react-router-dom'
-import { Trees, Building2 } from 'lucide-react';
+import { Trees, Building2, Plug, Wallet } from 'lucide-react';
 export function Navbar() {
   const { connect } = useConnect()
   const { address } = useAccount()
@@ -59,7 +59,7 @@ export function Navbar() {
                 onClick={() => connect({ connector: metaMask() })}
                 className="bg-white text-green-700 hover:bg-green-50 px-6 py-2 rounded-full font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center space-x-2"
               >
-                <span>🔌</span>
+                <Wallet className="text-green-700" size={16} />
                 <span>Connect Wallet</span>
               </button>
             ) : (
@@ -67,7 +67,7 @@ export function Navbar() {
                 onClick={() => disconnect()}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg flex items-center space-x-2"
               >
-                <span>🔌</span>
+                <Plug className="text-white" size={16} />
                 <span className="hidden sm:inline">Disconnect</span>
               </button>
             )}

@@ -1,10 +1,13 @@
-import { useState } from 'react'
 import { Route, Routes } from "react-router-dom";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { RegisterProject } from "./components/RegisterProject";
 import { Projects } from "./components/Projects";
 import { ProjectDetail } from "./components/ProjectDetail";
 import Layout from './components/Layout';
-
+import { Companies } from "./components/Companies";
+import { RegisterCompany } from "./components/RegisterCompany";
+import { CompanyDetail } from "./components/CompanyDetail";
 function App() {
   return (
     <div className="">
@@ -24,7 +27,23 @@ function App() {
             <ProjectDetail />
           </Layout>
         } />
+        <Route path="/companies" element={
+          <Layout>
+            <Companies />
+          </Layout>
+        } />
+        <Route path="/register-company" element={
+          <Layout>
+            <RegisterCompany />
+          </Layout>
+        } />
+        <Route path="/company/:companyAddress" element={
+          <Layout>
+            <CompanyDetail />
+          </Layout>
+        } />
       </Routes>
+      <ToastContainer />
     </div>
   )
 }
