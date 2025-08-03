@@ -178,6 +178,32 @@ export const projectAbi = [
       outputs: [],
       stateMutability: "payable",
       type: "function"
+    },
+    {
+      inputs: [
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        }
+      ],
+      name: "withdrawETH",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function"
+    },
+    {
+      inputs: [],
+      name: "getBalance",
+      outputs: [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      stateMutability: "view",
+      type: "function"
     }
 ] as const
 

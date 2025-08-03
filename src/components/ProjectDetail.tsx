@@ -5,7 +5,7 @@ import {
 } from 'wagmi'
 import { projectAbi, projectManagerAbi, roleManagerAbi } from '../../contracts'
 import LoadingOverlay from './LoadingOverlay'
-import { ArrowLeft, Leaf, TreePine, ShoppingBag, ArrowUp, Wallet, CircleUserRound, FileText } from "lucide-react";
+import { ArrowLeft, Leaf, TreePine, ShoppingBag, ArrowUp, Wallet, CircleUserRound, FileText, BanknoteArrowDown  } from "lucide-react";
 import { toast } from "react-toastify";
 import { useEffect, useState } from "react";
 
@@ -14,6 +14,7 @@ export function ProjectDetail() {
     const { address } = useAccount()
     const { data: hash, isPending, writeContract } = useWriteContract()
     const [amountToBuy, setAmountToBuy] = useState<number>(1)
+    const [amountToWithdraw, setAmountToWithdraw] = useState<number>(1)
     const { data: projectName, isLoading: nameLoading } = useReadContract({
         address: contractAddress as `0x${string}`,
         abi: projectAbi,
@@ -94,6 +95,34 @@ export function ProjectDetail() {
             enabled: !!contractAddress && !!address,
         }
     })
+
+    const { data: balance, isLoading: balanceLoading } = useReadContract({
+        address: contractAddress as `0x${string}`,
+        abi: projectAbi,
+        functionName: 'getBalance',
+        query: {
+            enabled: !!contractAddress && !!address,
+        }
+    })
+
+    const handleWithdraw = async () => {
+        if (!amountToWithdraw || amountToWithdraw <= 0) {
+            toast.error('Please enter a valid amount to withdraw')
+            return
+        }
+
+        try {
+            const result = writeContract({
+                address: contractAddress as `0x${string}`,
+                abi: projectAbi,
+                functionName: 'withdrawETH',
+                args: [BigInt(amountToWithdraw)],
+            })
+            console.log('Transaction hash:', result)
+        } catch (error) {
+            toast.error('Error withdrawing funds')
+        }
+    }
     console.log("isStaffOrAdmin", isStaffOrAdmin)
 
     async function updateStatus() {
@@ -144,8 +173,6 @@ export function ProjectDetail() {
             console.log('Transaction hash:', result)
         } catch (error) {
             toast.error('Error buying carbon credits')
-        } finally {
-            window.location.reload();
         }
     }
     const { isLoading: isWaitingForReceipt, isSuccess: isReceiptSuccess } = useWaitForTransactionReceipt({
@@ -167,7 +194,7 @@ export function ProjectDetail() {
         }
     }, [isReceiptSuccess]);
 
-    const isLoading = nameLoading || descriptionLoading || creatorLoading || statusLoading || tokensLoading || registrationLoading || priceLoading || isStaffLoading || isWaitingForReceipt || isPending || totalTokensLoading;
+    const isLoading = nameLoading || descriptionLoading || creatorLoading || statusLoading || tokensLoading || registrationLoading || priceLoading || isStaffLoading || isWaitingForReceipt || isPending || totalTokensLoading || balanceLoading;
 
     if (!isLoading && !isRegistered) {
         return (
@@ -231,7 +258,7 @@ export function ProjectDetail() {
                                 {(projectStatus ?? 0) === 0 ? '🔴' : '🟢'}
                             </div>
                             <p className={`font-semibold ${(projectStatus ?? 0) === 0 ? 'text-red-700' : 'text-green-700'}`}>
-                                {(projectStatus ?? 0) === 0 ? 'Inactive' :  projectStatus === 4 && Number(availableTokens) === 0 ? "Completed" : "Active"}
+                                {(projectStatus ?? 0) === 0 ? 'Inactive' : projectStatus === 4 && Number(availableTokens) === 0 ? "Completed" : "Active"}
                             </p>
                         </div>
                     </div>
@@ -269,9 +296,9 @@ export function ProjectDetail() {
                                 </div>
                                 <div className="flex items-center gap-2 mt-4">
                                     <FileText className="text-green-500" />
-                                <label className="block text-md font-bold text-black mb-1 pt-2">
-                                    Description
-                                </label>
+                                    <label className="block text-md font-bold text-black mb-1 pt-2">
+                                        Description
+                                    </label>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg">
                                     <p className="text-gray-800 leading-relaxed">
@@ -337,6 +364,33 @@ export function ProjectDetail() {
                         </button>
                     </div>
                 )}
+                <div className="mt-6 flex justify-end text-right gap-5">
+                    {projectCreator === address && (<>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                            <span className="text-gray-600">Balance:</span>
+                            <span className="text-green-600 font-bold">{balance ? `${balance} WEI` : 'Loading...'}</span>
+                            </div>
+                            <input
+                                type="number"
+                                min={1}
+                                value={amountToWithdraw}
+                                onChange={(e) => setAmountToWithdraw(Number(e.target.value))}
+                                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 min-w-48"
+                                placeholder="Amount to Withdraw"
+                            />
+                            <button
+                                onClick={() => handleWithdraw()}
+                                className={'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 hover:shadow-lg transform hover:scale-105 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 shadow-md flex items-center space-x-2'}
+                            >
+                                <BanknoteArrowDown  className="text-white" />
+                                <span>Withdraw</span>
+                            </button>
+                        </div>
+
+                    </>)}
+
+                </div>
             </div>
 
         </>

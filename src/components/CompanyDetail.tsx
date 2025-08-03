@@ -1,15 +1,18 @@
-import {useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
-import { companyAbi, companyManagerAbi, roleManagerAbi } from '../../contracts';
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContracts } from 'wagmi';
+import { companyAbi, companyManagerAbi, roleManagerAbi, projectManagerAbi, projectAbi } from '../../contracts';
 import LoadingOverlay from "./LoadingOverlay";
 import { toast } from "react-toastify";
-import { Building, FileText, Radiation, ArrowLeft, Leaf } from "lucide-react";
+import { Building, FileText, Radiation, ArrowLeft, Leaf, ShoppingBag, TreePine } from "lucide-react";
 
 export function CompanyDetail() {
     const { companyAddress } = useParams<{ companyAddress: string }>();
     const { address } = useAccount()
     const { data: hash, isPending, writeContract } = useWriteContract();
+    const [amountToBuy, setAmountToBuy] = useState<number>(1)
+    const [amountToBuyFromProject, setAmountToBuyFromProject] = useState<number>(1)
+    const [selectedProject, setSelectedProject] = useState<string>('')
 
     const { data: companyName, isLoading: nameLoading } = useReadContract({
         address: companyAddress as `0x${string}`,
@@ -74,6 +77,25 @@ export function CompanyDetail() {
         }
     });
 
+    const { data: projects } = useReadContract({
+        ...projectManagerAbi,
+        functionName: 'getAllProjects',
+        query: {
+            enabled: !!address,
+        }
+    });
+
+    const { data: projectNames, isLoading: projectsLoading } = useReadContracts({
+        contracts: projects?.map((projectAddress) => ({
+            address: projectAddress as `0x${string}`,
+            abi: projectAbi,
+            functionName: 'projectName',
+        })) || [],
+        query: {
+            enabled: !!projects && projects.length > 0,
+        }
+    });
+
     const { isLoading: isWaitingForReceipt, isSuccess: isReceiptSuccess } = useWaitForTransactionReceipt({
         hash,
     });
@@ -94,8 +116,55 @@ export function CompanyDetail() {
         } catch (error) {
             console.error('Error approving company:', error);
             toast.error('Error approving company');
-        } finally {
-            window.location.reload();
+        }
+    };
+
+    const handleBuyFromMarketplace = async () => {
+        if (!address) {
+            toast.error('User address is not available');
+            return;
+        }
+        try {
+            console.log({
+                address: companyAddress,
+                abi: companyAbi,
+                functionName: 'buyFromMarket',
+                args: [import.meta.env.VITE_CARBON_CREDIT_MARKET_CONTRACT_ADDRESS, BigInt(amountToBuy)],
+                value: BigInt(amountToBuy * 100),
+            });
+            const result = writeContract({
+                address: companyAddress as `0x${string}`,
+                abi: companyAbi,
+                functionName: 'buyFromMarket',
+                args: [import.meta.env.VITE_CARBON_CREDIT_MARKET_CONTRACT_ADDRESS as `0x${string}`, BigInt(amountToBuy)],
+                value: BigInt(amountToBuy) * BigInt(100),
+            });
+            console.log('Transaction initiated:', result);
+            toast.info('Transaction submitted, please wait for confirmation...');
+        } catch (error) {
+            console.error('Error buying from marketplace:', error);
+            toast.error('Error buying from marketplace');
+        }
+    };
+
+    const handleBuyFromProject = async (projectAddress: string) => {
+        if (!address || !projectAddress) {
+            toast.error('Please select a valid project and ensure your wallet is connected.');
+            return;
+        }
+        try {
+            const result = await writeContract({
+                address: companyAddress as `0x${string}`,
+                abi: companyAbi,
+                functionName: 'buyFromProject',
+                args: [projectAddress as `0x${string}`, BigInt(amountToBuy)],
+                value: BigInt(amountToBuy) * BigInt(100),
+            });
+            console.log('Transaction initiated:', result);
+            toast.info('Transaction submitted, please wait for confirmation...');
+        } catch (error) {
+            console.error('Error buying from project:', error);
+            toast.error('Error buying from project');
         }
     };
 
@@ -114,7 +183,7 @@ export function CompanyDetail() {
         }
     }, [isReceiptSuccess]);
 
-    const isLoading = nameLoading || ownerLoading || emissionsLoading || approvalLoading || isWaitingForReceipt || isStaffLoading || isRegisteredLoading || isPending || carbonCreditsLoading;
+    const isLoading = nameLoading || ownerLoading || emissionsLoading || approvalLoading || isWaitingForReceipt || isStaffLoading || isRegisteredLoading || isPending || carbonCreditsLoading || projectsLoading;
 
     if (!isLoading && !isRegistered) {
         return (
@@ -203,17 +272,74 @@ export function CompanyDetail() {
 
                     </div>
                 </div>
-                {isStaffOrAdmin && (
-                    <div className="mt-6 justify-end text-right">
-                        <button
-                            onClick={() => handleApproveCompany()}
-                            disabled={isApproved}
-                            className={`${isApproved ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'} text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105`}
+                <div className="mt-6 flex justify-end text-right gap-5">
+                    {companyOwner === address && (<>
+                        <div className="flex items-center gap-4">
+                            <input
+                                type="number"
+                                min={1}
+                                value={amountToBuy}
+                                onChange={(e) => setAmountToBuy(Number(e.target.value))}
+                                className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 min-w-48"
+                                placeholder="Amount to Buy"
+                            />
+                            <button
+                                onClick={() => handleBuyFromMarketplace()}
+                                className={'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 hover:shadow-lg transform hover:scale-105 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 shadow-md flex items-center space-x-2'}
+                            >
+                                <ShoppingBag className="text-white" />
+                                <span>Buy From Any</span>
+                            </button>
+                        </div>
+
+                    </>)}
+                    
+                </div>
+                {companyOwner === address && (
+                    <div className="mt-6 flex justify-end text-right gap-5 mb-6">
+                        <select
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                            className="border border-gray-300 rounded-lg px-3 focus:outline-none focus:ring-2 focus:ring-green-500"
                         >
-                            {isApproved ? 'Approved' : 'Approve Company'}
+                            <option value="">Select a Project</option>
+                            {projects?.map((projectAddress, index) => (
+                                <option key={projectAddress} value={projectAddress}>
+                                    {projectNames?.[index]?.result || 'Loading...'} ({projectAddress})
+                                </option>
+                            ))}
+                        </select>
+                        
+                        <input
+                            type="number"
+                            min={1}
+                            value={amountToBuyFromProject}
+                            onChange={(e) => setAmountToBuyFromProject(Number(e.target.value))}
+                            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 min-w-48"
+                            placeholder="Amount to Buy"
+                        />
+                        <button
+                            onClick={() => handleBuyFromProject(selectedProject)}
+                            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 hover:shadow-lg transform hover:scale-105 text-white px-6 py-2 rounded-lg font-semibold transition-all duration-200 shadow-md flex items-center space-x-2"
+                        >
+                            <TreePine className="text-white" />
+                            <span>Buy From Project</span>
                         </button>
+                        
+                    </div>)}
+                    <div className="flex justify-end text-right gap-5">
+                    {isStaffOrAdmin && (
+                        <div className="">
+                            <button
+                                onClick={() => handleApproveCompany()}
+                                disabled={isApproved}
+                                className={`${isApproved ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'} text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105`}
+                            >
+                                {isApproved ? 'Approved' : 'Approve Company'}
+                            </button>
+                        </div>
+                    )}
                     </div>
-                )}
             </div>
 
         </>
