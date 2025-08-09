@@ -123,7 +123,6 @@ export function ProjectDetail() {
             toast.error('Error withdrawing funds')
         }
     }
-    console.log("isStaffOrAdmin", isStaffOrAdmin)
 
     async function updateStatus() {
         try {

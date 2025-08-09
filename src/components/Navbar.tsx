@@ -1,12 +1,23 @@
-import { useConnect, useAccount, useDisconnect, useEnsName } from 'wagmi'
+import { useConnect, useAccount, useDisconnect, useEnsName, useReadContract } from 'wagmi'
 import { metaMask } from 'wagmi/connectors'
 import { Link } from 'react-router-dom'
-import { Trees, Building2, Plug, Wallet } from 'lucide-react';
+import { Trees, Building2, Plug, Wallet, Shield } from 'lucide-react';
+import { roleManagerAbi } from '../../contracts';
 export function Navbar() {
   const { connect } = useConnect()
   const { address } = useAccount()
   const { disconnect } = useDisconnect()
   const { data: ensName } = useEnsName({ address })
+
+  const { data: admin } = useReadContract({
+    ...roleManagerAbi,
+    functionName: 'admin',
+    query: {
+      enabled: !!address,
+    }
+  });
+
+  const isAdmin = address && admin && address === admin;
 
   return (
     <nav className="relative w-full bg-gradient-to-r from-green-600 to-green-800 shadow-lg border-b border-green-500">
@@ -40,6 +51,14 @@ export function Navbar() {
               >
                 <Building2/> Companies
               </Link>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-2 text-green-100 hover:text-white hover:bg-green-700 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                >
+                  <Shield/> Admin
+                </Link>
+              )}
             </div>
           </div>
 

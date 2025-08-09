@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import { Companies } from "./components/Companies";
 import { RegisterCompany } from "./components/RegisterCompany";
 import { CompanyDetail } from "./components/CompanyDetail";
+import { Admin } from "./components/Admin";
 function App() {
   return (
     <div className="">
@@ -40,6 +41,11 @@ function App() {
         <Route path="/company/:companyAddress" element={
           <Layout>
             <CompanyDetail />
+          </Layout>
+        } />
+        <Route path="/admin" element={
+          <Layout>
+            <Admin />
           </Layout>
         } />
       </Routes>

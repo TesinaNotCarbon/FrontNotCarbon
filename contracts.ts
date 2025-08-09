@@ -228,7 +228,46 @@ export const roleManagerAbi = {
       ],
       stateMutability: "view",
       type: "function"
-    }
+    },
+    {
+      inputs: [],
+      name: "admin",
+      outputs: [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      stateMutability: "view",
+      type: "function"
+    },
+    {
+      inputs: [
+        {
+          "internalType": "address",
+          "name": "_staff",
+          "type": "address"
+        }
+      ],
+      name: "addStaff",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function"
+    },
+    {
+      inputs: [
+        {
+          "internalType": "address",
+          "name": "_staff",
+          "type": "address"
+        }
+      ],
+      name: "removeStaff",
+      outputs: [],
+      stateMutability: "nonpayable",
+      type: "function"
+    },
   ],
 } as const
 
