@@ -137,7 +137,7 @@ export function CompanyDetail() {
                 abi: companyAbi,
                 functionName: 'buyFromMarket',
                 args: [import.meta.env.VITE_CARBON_CREDIT_MARKET_CONTRACT_ADDRESS as `0x${string}`, BigInt(amountToBuy)],
-                value: BigInt(amountToBuy) * BigInt(100),
+                value: BigInt(amountToBuy) * BigInt(10),
             });
             console.log('Transaction initiated:', result);
             toast.info('Transaction submitted, please wait for confirmation...');
