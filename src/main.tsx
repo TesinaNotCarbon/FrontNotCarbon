@@ -7,6 +7,8 @@ import { config } from "../config.ts";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from "./App.tsx";
 import './index.css';
+import 'leaflet/dist/leaflet.css';
+import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 const queryClient = new QueryClient()
 
 
