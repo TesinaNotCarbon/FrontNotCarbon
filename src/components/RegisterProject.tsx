@@ -12,7 +12,6 @@ import {
     MapPinned,
     ListOrdered,
     Upload,
-    Send,
     Plus,
     Trash2,
 } from "lucide-react";
@@ -263,6 +262,11 @@ export function RegisterProject() {
             return
         }
 
+        const geometryUploaded = await handleUploadProjectGeometry(name, description)
+        if (!geometryUploaded) {
+            return
+        }
+
         try {
             const result = writeContract({
                 ...projectManagerAbi,
@@ -353,17 +357,17 @@ export function RegisterProject() {
         }
     }
 
-    async function handleUploadProjectGeometry() {
+    async function handleUploadProjectGeometry(projectName: string, projectDescription: string): Promise<boolean> {
         if (!geometryValidation.valid) {
             toast.error(geometryValidation.error || 'Please provide a valid polygon.')
-            return
+            return false
         }
 
         try {
             setIsUploadingGeometry(true)
             const payload = {
-                projectName: formData.name,
-                description: formData.description,
+                projectName,
+                description: projectDescription,
                 coordinates: validCoordinates,
                 geoJson: toGeoJsonPolygon(validCoordinates),
                 sourceTab: activeTab as GeometrySourceTab,
@@ -371,9 +375,11 @@ export function RegisterProject() {
 
             const response = await postProjectGeometryMock(payload)
             toast.success(`Project geometry uploaded. Mock id: ${response.id}`)
+            return true
         } catch (error) {
             console.error('Error uploading geometry:', error)
             toast.error('Could not upload project geometry.')
+            return false
         } finally {
             setIsUploadingGeometry(false)
         }
@@ -465,220 +471,205 @@ export function RegisterProject() {
                                 />
                             </div>
 
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <MapPinned className="text-green-600" size={24} />
+                                        <h3 className="font-semibold text-gray-800">Project Geometry</h3>
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Add polygon coordinates (max {MAX_POLYGON_POINTS}), convert to GeoJSON and upload to API mock.
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2" role="tablist" aria-label="Geometry input methods">
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={activeTab === 'map'}
+                                        onClick={() => setActiveTab('map')}
+                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                                            activeTab === 'map'
+                                                ? 'bg-green-600 text-white border-green-600'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <MapPinned size={18} />
+                                        Interactive Map
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={activeTab === 'inputs'}
+                                        onClick={() => setActiveTab('inputs')}
+                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                                            activeTab === 'inputs'
+                                                ? 'bg-green-600 text-white border-green-600'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <ListOrdered size={18} />
+                                        Coordinate Inputs
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={activeTab === 'upload'}
+                                        onClick={() => setActiveTab('upload')}
+                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                                            activeTab === 'upload'
+                                                ? 'bg-green-600 text-white border-green-600'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <Upload size={18} />
+                                        Upload GeoJSON
+                                    </button>
+                                </div>
+
+                                <div
+                                    role="tabpanel"
+                                    className="bg-white border border-gray-200 rounded-lg p-4"
+                                >
+                                    {activeTab === 'map' && (
+                                        <div className="space-y-3">
+                                            <p className="text-sm text-gray-600">
+                                                Draw a polygon directly on the map. Use 3 to {MAX_POLYGON_POINTS} coordinates.
+                                            </p>
+                                            <div className="h-[420px] w-full rounded-lg overflow-hidden border border-gray-300">
+                                                <MapContainer
+                                                    center={MAP_CENTER}
+                                                    zoom={5}
+                                                    className="h-full w-full"
+                                                >
+                                                    <TileLayer
+                                                        attribution='&copy; OpenStreetMap contributors'
+                                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                                    />
+                                                    <MapPolygonEditor
+                                                        coordinates={coordinates}
+                                                        onCoordinatesChange={setCoordinates}
+                                                        isActive={activeTab === 'map'}
+                                                    />
+                                                </MapContainer>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'inputs' && (
+                                        <div className="space-y-4">
+                                            <p className="text-sm text-gray-600">
+                                                Add latitude and longitude manually. Maximum {MAX_POLYGON_POINTS} coordinates.
+                                            </p>
+
+                                            {coordinates.length === 0 && (
+                                                <p className="text-sm text-gray-500">No coordinates yet. Add your first coordinate.</p>
+                                            )}
+
+                                            <div className="space-y-3">
+                                                {coordinates.map((coord, index) => (
+                                                    <div key={`coordinate-${index}`} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-end">
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Latitude {index + 1}
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="any"
+                                                                value={Number.isFinite(coord.lat) ? coord.lat : ''}
+                                                                onChange={(event) => updateCoordinate(index, 'lat', event.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                                placeholder="-34.6037"
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Longitude {index + 1}
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="any"
+                                                                value={Number.isFinite(coord.lng) ? coord.lng : ''}
+                                                                onChange={(event) => updateCoordinate(index, 'lng', event.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                                placeholder="-58.3816"
+                                                            />
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeCoordinate(index)}
+                                                            className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={addCoordinate}
+                                                disabled={coordinates.length >= MAX_POLYGON_POINTS}
+                                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                                                    coordinates.length >= MAX_POLYGON_POINTS
+                                                        ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
+                                                        : 'bg-white text-green-700 border-green-300 hover:bg-green-50'
+                                                    }`}
+                                            >
+                                                <Plus size={16} />
+                                                Add coordinate
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'upload' && (
+                                        <div className="space-y-4">
+                                            <p className="text-sm text-gray-600">
+                                                Upload a .geojson or .json file containing a Polygon. The first polygon found will be used.
+                                            </p>
+                                            <input
+                                                type="file"
+                                                accept=".geojson,.json,application/json,application/geo+json"
+                                                onChange={handleGeoJsonUpload}
+                                                className="w-full px-3 py-3 border border-dashed border-green-300 rounded-lg bg-white"
+                                            />
+                                            <p className="text-xs text-gray-500">
+                                                Supported GeoJSON types: Polygon, Feature(Polygon), FeatureCollection(first Polygon).
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid gap-4 md:grid-cols-1">
+                                    <div className="bg-gray-900 text-green-200 rounded-lg p-4 overflow-x-auto">
+                                        <h3 className="font-semibold text-white mb-2">GeoJSON Preview</h3>
+                                        <pre className="text-xs whitespace-pre-wrap break-words">
+                                            {geoJsonPreview || 'Complete a valid polygon to see the GeoJSON preview.'}
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex justify-end">
                                 <button
                                     type="submit"
-                                    disabled={!address || isPending}
+                                    disabled={!address || isPending || isUploadingGeometry || isWaitingForReceipt}
                                     className={`${
-                                        !address || isPending
+                                        !address || isPending || isUploadingGeometry || isWaitingForReceipt
                                             ? 'bg-gray-400 cursor-not-allowed'
                                             : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 hover:shadow-lg transform hover:scale-105'
                                         } text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md flex items-center space-x-2`}
                                 >
                                     <span>🌱</span>
-                                    <span>{isPending ? 'Registering...' : 'Register Project'}</span>
+                                    <span>{isUploadingGeometry ? 'Uploading geometry...' : isPending || isWaitingForReceipt ? 'Registering...' : 'Register Project'}</span>
                                 </button>
                             </div>
                         </form>
-                    </div>
-                </div>
-
-                <div className="mt-8 bg-white rounded-lg shadow-lg overflow-hidden">
-                    <div className="bg-gradient-to-r from-emerald-600 to-lime-600 p-6 text-white">
-                        <h2 className="text-xl font-semibold">Project Geometry</h2>
-                        <p className="text-emerald-100 mt-1">
-                            Add polygon coordinates (max {MAX_POLYGON_POINTS}), convert to GeoJSON and upload to API mock.
-                        </p>
-                    </div>
-
-                    <div className="p-6 space-y-6">
-                        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Geometry input methods">
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={activeTab === 'map'}
-                                onClick={() => setActiveTab('map')}
-                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                                    activeTab === 'map'
-                                        ? 'bg-green-600 text-white border-green-600'
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <MapPinned size={18} />
-                                Interactive Map
-                            </button>
-
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={activeTab === 'inputs'}
-                                onClick={() => setActiveTab('inputs')}
-                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                                    activeTab === 'inputs'
-                                        ? 'bg-green-600 text-white border-green-600'
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <ListOrdered size={18} />
-                                Coordinate Inputs
-                            </button>
-
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={activeTab === 'upload'}
-                                onClick={() => setActiveTab('upload')}
-                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                                    activeTab === 'upload'
-                                        ? 'bg-green-600 text-white border-green-600'
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                    }`}
-                            >
-                                <Upload size={18} />
-                                Upload GeoJSON
-                            </button>
-                        </div>
-
-                        <div
-                            role="tabpanel"
-                            className="bg-gray-50 border border-gray-200 rounded-lg p-4"
-                        >
-                            {activeTab === 'map' && (
-                                <div className="space-y-3">
-                                    <p className="text-sm text-gray-600">
-                                        Draw a polygon directly on the map. Use 3 to {MAX_POLYGON_POINTS} coordinates.
-                                    </p>
-                                    <div className="h-[420px] w-full rounded-lg overflow-hidden border border-gray-300">
-                                        <MapContainer
-                                            center={MAP_CENTER}
-                                            zoom={5}
-                                            className="h-full w-full"
-                                        >
-                                            <TileLayer
-                                                attribution='&copy; OpenStreetMap contributors'
-                                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                            />
-                                            <MapPolygonEditor
-                                                coordinates={coordinates}
-                                                onCoordinatesChange={setCoordinates}
-                                                isActive={activeTab === 'map'}
-                                            />
-                                        </MapContainer>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'inputs' && (
-                                <div className="space-y-4">
-                                    <p className="text-sm text-gray-600">
-                                        Add latitude and longitude manually. Maximum {MAX_POLYGON_POINTS} coordinates.
-                                    </p>
-
-                                    {coordinates.length === 0 && (
-                                        <p className="text-sm text-gray-500">No coordinates yet. Add your first coordinate.</p>
-                                    )}
-
-                                    <div className="space-y-3">
-                                        {coordinates.map((coord, index) => (
-                                            <div key={`coordinate-${index}`} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-end">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Latitude {index + 1}
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        step="any"
-                                                        value={Number.isFinite(coord.lat) ? coord.lat : ''}
-                                                        onChange={(event) => updateCoordinate(index, 'lat', event.target.value)}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                        placeholder="-34.6037"
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Longitude {index + 1}
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        step="any"
-                                                        value={Number.isFinite(coord.lng) ? coord.lng : ''}
-                                                        onChange={(event) => updateCoordinate(index, 'lng', event.target.value)}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                        placeholder="-58.3816"
-                                                    />
-                                                </div>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeCoordinate(index)}
-                                                    className="inline-flex items-center justify-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                                                >
-                                                    <Trash2 size={16} />
-                                                    Remove
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={addCoordinate}
-                                        disabled={coordinates.length >= MAX_POLYGON_POINTS}
-                                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                                            coordinates.length >= MAX_POLYGON_POINTS
-                                                ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
-                                                : 'bg-white text-green-700 border-green-300 hover:bg-green-50'
-                                            }`}
-                                    >
-                                        <Plus size={16} />
-                                        Add coordinate
-                                    </button>
-                                </div>
-                            )}
-
-                            {activeTab === 'upload' && (
-                                <div className="space-y-4">
-                                    <p className="text-sm text-gray-600">
-                                        Upload a .geojson or .json file containing a Polygon. The first polygon found will be used.
-                                    </p>
-                                    <input
-                                        type="file"
-                                        accept=".geojson,.json,application/json,application/geo+json"
-                                        onChange={handleGeoJsonUpload}
-                                        className="w-full px-3 py-3 border border-dashed border-green-300 rounded-lg bg-white"
-                                    />
-                                    <p className="text-xs text-gray-500">
-                                        Supported GeoJSON types: Polygon, Feature(Polygon), FeatureCollection(first Polygon).
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-1">
-                            <div className="bg-gray-900 text-green-200 rounded-lg p-4 overflow-x-auto">
-                                <h3 className="font-semibold text-white mb-2">GeoJSON Preview</h3>
-                                <pre className="text-xs whitespace-pre-wrap break-words">
-                                    {geoJsonPreview || 'Complete a valid polygon to see the GeoJSON preview.'}
-                                </pre>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end">
-                            <button
-                                type="button"
-                                onClick={handleUploadProjectGeometry}
-                                disabled={isUploadingGeometry || !geometryValidation.valid}
-                                className={`${
-                                    isUploadingGeometry || !geometryValidation.valid
-                                        ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-gradient-to-r from-emerald-600 to-lime-600 hover:from-emerald-700 hover:to-lime-700 hover:shadow-lg transform hover:scale-105'
-                                    } text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md inline-flex items-center gap-2`}
-                            >
-                                <Send size={18} />
-                                {isUploadingGeometry ? 'Uploading...' : 'Cargar proyecto'}
-                            </button>
-                        </div>
                     </div>
                 </div>
 
