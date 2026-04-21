@@ -37,6 +37,11 @@ export const projectManagerAbi = {
           "internalType": "uint256",
           "name": "_totalTokens",
           "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "_cid",
+          "type": "string"
         }
       ],
       name: "registerProject",
