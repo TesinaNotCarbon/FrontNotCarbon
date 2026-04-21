@@ -26,19 +26,22 @@ import {
     validateCoordinates,
     extractCoordinatesFromGeoJson,
 } from '../lib/geojson';
-import {
-    postProjectGeometryMock,
-    type GeometrySourceTab,
-} from '../services/projectGeometryMock';
+import { pinJsonToIpfs } from '../services/pinataIpfs.ts';
 
 type GeometryTab = 'map' | 'inputs' | 'upload';
 
 const MAP_CENTER: [number, number] = [-34.6037, -58.3816];
 
 function extractPolygonCoordinates(layer: L.Polygon): Coordinate[] {
-    const latLngGroups = layer.getLatLngs() as L.LatLng[][];
-    const latLngs = latLngGroups[0] || [];
-    return latLngs.map((point) => ({ lat: point.lat, lng: point.lng }));
+    const latLngGroups = layer.getLatLngs();
+    const firstRing = Array.isArray(latLngGroups[0])
+        ? (latLngGroups[0] as L.LatLng[])
+        : (latLngGroups as unknown as L.LatLng[]);
+
+    return firstRing.map((point) => ({
+        lat: point.lat,
+        lng: L.Util.wrapNum(point.lng, [-180, 180], true),
+    }));
 }
 
 function MapPolygonEditor({
@@ -262,8 +265,8 @@ export function RegisterProject() {
             return
         }
 
-        const geometryUploaded = await handleUploadProjectGeometry(name, description)
-        if (!geometryUploaded) {
+        const geometryCid = await handleUploadProjectGeometry(name, description)
+        if (!geometryCid) {
             return
         }
 
@@ -271,7 +274,13 @@ export function RegisterProject() {
             const result = writeContract({
                 ...projectManagerAbi,
                 functionName: 'registerProject',
-                args: [name, description, import.meta.env.VITE_CARBON_CREDIT_CONTRACT_ADDRESS as `0x${string}`, BigInt(totalTokens)],
+                args: [
+                    name,
+                    description,
+                    import.meta.env.VITE_CARBON_CREDIT_CONTRACT_ADDRESS as `0x${string}`,
+                    BigInt(totalTokens),
+                    geometryCid,
+                ],
             })
             console.log('Transaction initiated:', result)
             toast.info('Transaction submitted, please wait for confirmation...')
@@ -298,7 +307,7 @@ export function RegisterProject() {
     const isLoading = isPending || isWaitingForReceipt || isUploadingGeometry
 
     const loadingText = isUploadingGeometry
-        ? 'Uploading project geometry...'
+        ? 'Uploading project geometry to IPFS...'
         : 'Registering Project...'
 
     function addCoordinate() {
@@ -357,29 +366,43 @@ export function RegisterProject() {
         }
     }
 
-    async function handleUploadProjectGeometry(projectName: string, projectDescription: string): Promise<boolean> {
+    async function handleUploadProjectGeometry(projectName: string, projectDescription: string): Promise<string | null> {
         if (!geometryValidation.valid) {
             toast.error(geometryValidation.error || 'Please provide a valid polygon.')
-            return false
+            return null
         }
 
         try {
             setIsUploadingGeometry(true)
-            const payload = {
-                projectName,
-                description: projectDescription,
-                coordinates: validCoordinates,
-                geoJson: toGeoJsonPolygon(validCoordinates),
-                sourceTab: activeTab as GeometrySourceTab,
+            const geoJson = toGeoJsonPolygon(validCoordinates)
+            const ipfsPayload = {
+                type: 'Feature',
+                geometry: geoJson,
+                properties: {
+                    projectName,
+                    description: projectDescription,
+                    sourceTab: activeTab,
+                    coordinatesCount: validCoordinates.length,
+                    createdAt: new Date().toISOString(),
+                },
             }
 
-            const response = await postProjectGeometryMock(payload)
-            toast.success(`Project geometry uploaded. Mock id: ${response.id}`)
-            return true
+            const safeName = projectName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'project'
+            const cid = await pinJsonToIpfs(ipfsPayload, {
+                name: `project-geometry-${safeName}-${Date.now()}`,
+                keyvalues: {
+                    projectName,
+                    sourceTab: activeTab,
+                },
+            })
+
+            toast.success(`Project geometry uploaded to IPFS. CID: ${cid}`)
+            return cid
         } catch (error) {
             console.error('Error uploading geometry:', error)
-            toast.error('Could not upload project geometry.')
-            return false
+            const message = error instanceof Error ? error.message : 'Could not upload project geometry to IPFS.'
+            toast.error(message)
+            return null
         } finally {
             setIsUploadingGeometry(false)
         }
@@ -478,7 +501,7 @@ export function RegisterProject() {
                                         <h3 className="font-semibold text-gray-800">Project Geometry</h3>
                                     </div>
                                     <p className="text-sm text-gray-600">
-                                        Add polygon coordinates (max {MAX_POLYGON_POINTS}), convert to GeoJSON and upload to API mock.
+                                        Add polygon coordinates (max {MAX_POLYGON_POINTS}), convert to GeoJSON and upload to IPFS.
                                     </p>
                                 </div>
 
